@@ -1,0 +1,66 @@
+# Конфиг golangci-lint v2 (проверено на 2.14.0).
+# Правило проекта — ноль находок. Исключение либо здесь с причиной, либо
+# //nolint:правило // причина в коде. Молча игнорировать нельзя.
+version: "2"
+
+run:
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - gosec
+    - revive
+    # Ниже — добавленные под конвенции этого проекта, сверх базового набора:
+    - errorlint # ошибки через %w и errors.Is/As, а не сравнение строк и приведение типов
+    - noctx     # context.Context обязателен во всём I/O — ловит запросы и команды без него
+    - bodyclose # есть HTTP-сервер и клиент: незакрытый Body утекает соединениями
+  settings:
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-declaration
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    gosec:
+      excludes:
+        - G301 # 0o755 на папки профилей и кэша — норма для пользовательской утилиты
+        - G302 # то же для файла вывода и профилей
+        - G306 # вывод должен открываться другими программами (редактор, браузер)
+        # G304 — «открытие файла по пути из переменной». Для aiexport это не дефект,
+        # а сам продукт: инструмент по замыслу читает пути, выбранные пользователем.
+        # Защита делается явно — os.Root на корень источника, нормализация путей,
+        # отказ на UNC и \\?\ — а не запретом на os.Open.
+        - G304
+  exclusions:
+    generated: lax
+    paths:
+      - .gotmp
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec   # тесты сами создают файлы с нарочно странными правами и содержимым
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    paths:
+      - .gotmp

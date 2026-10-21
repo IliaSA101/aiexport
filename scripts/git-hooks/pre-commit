@@ -1,0 +1,66 @@
+#!/bin/sh
+# Pre-commit: не пускает в репозиторий личное и оснастку агентов, плюс быстрые
+# проверки только файлов коммита (секунды). Полный прогон — scripts/check.sh (Windows: check.ps1).
+# На Linux и macOS файлу нужен бит исполнения, иначе git молча его не запускает.
+#
+# Подключение, один раз на машину:
+#   git config core.hooksPath scripts/git-hooks
+#
+# CLAUDE.md здесь сознательно НЕ запрещён: в этом проекте он часть документации
+# и едет в репозиторий. Личные предпочтения живут в памяти Claude, а не в нём.
+
+bad=$(git diff --cached --name-only --diff-filter=ACMR | grep -E \
+  '^\.claude/|^docs/private/|(^|/)\.env|^profiles\.yaml$|^[^/]*-export\.(md|txt)$')
+if [ -n "$bad" ]; then
+  echo "pre-commit: эти файлы не должны попадать в git (оснастка агентов, личное, выгрузки):" >&2
+  echo "$bad" | sed 's/^/  /' >&2
+  echo "Убрать из индекса: git rm --cached <файл>" >&2
+  exit 1
+fi
+
+# Крупные файлы (> 2 МБ) — почти наверняка случайность
+big=$(git diff --cached --name-only --diff-filter=ACMR | while read -r f; do
+  [ -f "$f" ] && [ "$(wc -c < "$f")" -gt 2097152 ] && echo "$f"
+done)
+if [ -n "$big" ]; then
+  echo "pre-commit: файлы больше 2 МБ:" >&2
+  echo "$big" | sed 's/^/  /' >&2
+  exit 1
+fi
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# gofmt по изменённым .go. Go мог быть поставлен после открытия окна — ищем сами.
+gofiles=$(echo "$staged" | grep -E '\.go$')
+if [ -n "$gofiles" ]; then
+  GOFMT=$(command -v gofmt 2>/dev/null)
+  if [ -z "$GOFMT" ] && [ -x "/c/Program Files/Go/bin/gofmt.exe" ]; then
+    GOFMT="/c/Program Files/Go/bin/gofmt.exe"
+  fi
+  if [ -z "$GOFMT" ]; then
+    echo "pre-commit: gofmt не найден — проверка форматирования пропущена" >&2
+  else
+    unformatted=$("$GOFMT" -l $gofiles)
+    if [ -n "$unformatted" ]; then
+      echo "pre-commit: не отформатировано gofmt:" >&2
+      echo "$unformatted" | sed 's/^/  /' >&2
+      echo "Починить: gofmt -w <файл>" >&2
+      exit 1
+    fi
+  fi
+fi
+
+# Синтаксис изменённых ES-модулей веб-UI. Только через stdin с --input-type=module:
+# `node --check файл.js` на модуле молча возвращает 0 даже для битого файла.
+jsfiles=$(echo "$staged" | grep -E '^web/.*\.js$')
+if [ -n "$jsfiles" ] && command -v node >/dev/null 2>&1; then
+  for f in $jsfiles; do
+    [ -f "$f" ] || continue
+    if ! node --check --input-type=module < "$f"; then
+      echo "pre-commit: синтаксическая ошибка в $f" >&2
+      exit 1
+    fi
+  done
+fi
+
+exit 0
