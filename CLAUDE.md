@@ -51,7 +51,7 @@ go build -ldflags "-X main.version=0.1.0" -o bin/aiexport.exe ./cmd/aiexport
 
 **Прототипы, разовые сборки и тестовые деревья — в `.gotmp/`** (он в `.gitignore`): одно место на всех, его знают хуки и `docs/QA.md`, а на Windows scratchpad лежит внутри `%TEMP%`, где антивирус ловит собранное. Текстовые заметки в scratchpad держать можно.
 
-Хук pre-commit подключается один раз: `git config core.hooksPath scripts/git-hooks`. На Linux ему нужен бит исполнения (`chmod +x scripts/git-hooks/pre-commit`), иначе git молча его пропускает.
+Хуки pre-commit и pre-push подключаются один раз: `git config core.hooksPath scripts/git-hooks`. На Linux им нужен бит исполнения (`chmod +x scripts/git-hooks/pre-commit scripts/git-hooks/pre-push`), иначе git молча их пропускает. pre-push — последний рубеж перед GitHub: проверяет каждый новый коммит, его сообщение и тексты меток, а не только итоговое дерево.
 
 ## Качество
 
