@@ -29,6 +29,11 @@ if (-not (Test-Path $goExe)) {
 # В ту же папку лежит gofmt — добавляем её в PATH, чтобы шаги звались просто по имени
 $env:PATH = (Split-Path $goExe) + [IO.Path]::PathSeparator + $env:PATH
 
+# Проверяем тем же компилятором, которым собирается выпуск (release.sh, decisions §14): иначе
+# зелёный -Vuln при более новом Go на машине ничего не говорит о выпускаемом бинарнике.
+$tc = Select-String -Path (Join-Path $root 'go.mod') -Pattern '^toolchain\s+(\S+)' | Select-Object -First 1
+if ($tc) { $env:GOTOOLCHAIN = $tc.Matches[0].Groups[1].Value }
+
 # Антивирус ловит тестовые exe во %TEMP% — собираем их внутри проекта (.gotmp в .gitignore)
 $env:GOTMPDIR = Join-Path $root '.gotmp'
 if (-not (Test-Path $env:GOTMPDIR)) { New-Item -ItemType Directory -Path $env:GOTMPDIR | Out-Null }
