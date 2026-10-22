@@ -36,6 +36,10 @@ if [ -n "${GOTMPDIR:-}" ] && [ ! -d "$GOTMPDIR" ]; then
   echo "${red}FAIL GOTMPDIR указывает на несуществующий каталог: $GOTMPDIR (убрать: unset GOTMPDIR)${off}"
   exit 1
 fi
+# Проверяем тем же компилятором, которым собирается выпуск (release.sh, decisions §14): иначе
+# зелёный --vuln при более новом Go на машине ничего не говорит о выпускаемом бинарнике.
+tc=$(awk '$1 == "toolchain" { print $2; exit }' "$root/go.mod")
+if [ -n "$tc" ]; then export GOTOOLCHAIN=$tc; fi
 gobin="$(go env GOPATH)/bin"
 tmp="$root/.gotmp"
 mkdir -p "$tmp"

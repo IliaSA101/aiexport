@@ -83,22 +83,29 @@ touch_probe=$(mktemp)
 touch -d @0 "$touch_probe" 2>/dev/null || { rm -f -- "$touch_probe"; fail "нужны GNU tar/coreutils (Linux): touch не понимает -d @0"; }
 rm -f -- "$touch_probe"
 
+# toolchain в go.mod — лишь минимум: где свой go новее, собирает он, и суммы со второй машины
+# не сходятся (22.10.2026: здесь go1.27.3, на Windows go1.26.9). Поэтому собираем ровно им.
+want_toolchain=$(awk '$1 == "toolchain" { print $2; exit }' go.mod) || fail "не удалось прочитать go.mod"
+[ -n "$want_toolchain" ] || fail "в go.mod нет директивы toolchain: нечем зафиксировать компилятор"
+export GOTOOLCHAIN=$want_toolchain
+want_toolchain=${want_toolchain#go}
+# Печатаем сразу: видно, каким тулчейном пойдёт сборка; здесь же он скачивается, если его нет.
+go version || fail "нет go$want_toolchain и скачать не вышло (сеть, GOPROXY)"
+
 # Окружение сборки задаём явно: `go env -w` и переменные оболочки на машине не должны менять
 # бинарник. Пустое GOFLAGS= не перекрывает файл настроек go env -w, поэтому GOENV=off — он
 # отключает этот файл целиком. GOAMD64/GOARM64 фиксируем на базовом уровне: бинарник должен
 # запускаться на любом процессоре архитектуры, а не только на машине сборки.
 # GOENV=off отбрасывает заодно настройки сети и кэша (прокси, приватные модули, каталоги,
-# политику тулчейна). Код бинарника они не меняют, но без них сборка за прокси или с приватными
+# тулчейн). Код бинарника они не меняют, но без них сборка за прокси или с приватными
 # модулями упала бы, поэтому читаем их ДО отключения файла и передаём переменными окружения.
-for v in GOTOOLCHAIN GOPROXY GOMODCACHE GOPATH GOPRIVATE GONOSUMDB GONOPROXY GOINSECURE; do
+for v in GOPROXY GOSUMDB GOMODCACHE GOPATH GOPRIVATE GONOSUMDB GONOPROXY GOINSECURE; do
   val=$(go env "$v") || fail "go env $v не прочитал настройку"
   if [ -n "$val" ]; then export "$v=$val"; fi
 done
 unset v val
 export GOENV=off GOWORK=off GOFLAGS= GOEXPERIMENT= GOAMD64=v1 GOARM64=v8.0
 
-# Версию go печатаем сразу: видно, каким тулчейном пойдёт сборка (см. check_toolchain).
-go version
 git rev-parse --git-dir >/dev/null 2>&1 || fail "$root не git-репозиторий: не из чего брать время сборки"
 # Неотслеживаемые файлы тоже считаем: забытый файл должен остановить выпуск до сборки, а не
 # после пяти целей на vcs.modified. --untracked-files=all обязателен: без флага команда
@@ -250,26 +257,18 @@ build_all() {
 }
 
 # ---------- 5. проверки собранного ----------
-# Версия go в бинарнике не ниже директивы toolchain из go.mod: иначе собралось бы старым
-# тулчейном с известными уязвимостями стандартной библиотеки (GOTOOLCHAIN=local, старый go).
-# sort -V: меньшая из двух версий должна совпасть с требуемой.
-want_toolchain=''
-read_toolchain() {
-  want_toolchain=$(awk '$1 == "toolchain" { print $2; exit }' go.mod) || fail "не удалось прочитать go.mod"
-  want_toolchain=${want_toolchain#go}
-}
+# Версия go в бинарнике ровно та, что в toolchain из go.mod (GOTOOLCHAIN выше): иначе суммы
+# выпуска не воспроизвести на другой машине.
 check_toolchain() {
-  local t=$1 info=$2 first got low
+  local t=$1 info=$2 first got
   # Первая строка вывода `go version -m`: «путь: go1.26.9».
   first=$(head -n 1 <<<"$info")
   got=${first##*: }
   got=${got%% *}
   [[ $got =~ ^go[0-9] ]] || fail "$t: не разобрана версия go из «$first»"
   got=${got#go}
-  [ -n "$want_toolchain" ] || return 0
-  low=$(printf '%s\n%s\n' "$want_toolchain" "$got" | sort -V | head -n 1)
-  [ "$low" = "$want_toolchain" ] ||
-    fail "$t: бинарник собран go$got, а go.mod требует не ниже go$want_toolchain — обновите тулчейн (известные уязвимости)"
+  [ "$got" = "$want_toolchain" ] ||
+    fail "$t: бинарник собран go$got, а выпуск собирается ровно go$want_toolchain из go.mod"
 }
 
 # Метаданные сборки, которые Go вшивает в бинарник: убеждаемся, что собрано именно то, что заказано.
@@ -422,7 +421,6 @@ pack_all() {
 }
 
 echo "выпуск aiexport $label -> dist/$label"
-read_toolchain
 check_tracked
 build_all
 verify_all
