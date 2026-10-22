@@ -20,6 +20,29 @@
 счётчик токенов `o200k_base` с зонами, веб-интерфейс. Профили, глобы в конфиге, сканер
 секретов, режим скелета и доступ по сети — следующие версии, см. `docs/ROADMAP.md`.
 
+## Установка
+
+Готовый бинарник — на странице Releases: https://github.com/IliaSA101/aiexport/releases
+(ходите по этой ссылке, а не через поиск: он может привести на поддельный форк).
+
+1. Скачать архив своей ОС и `SHA256SUMS`
+   (`aiexport-ВЕРСИЯ-linux-amd64.tar.gz`, `…-darwin-arm64.tar.gz`, `…-windows-amd64.zip` и т. д.).
+2. Сверить сумму в каталоге с загрузками:
+   - Linux: `sha256sum -c SHA256SUMS --ignore-missing`;
+   - macOS: `shasum -a 256 -c SHA256SUMS --ignore-missing`;
+   - Windows (PowerShell): `Get-FileHash -Algorithm SHA256 .\aiexport-ВЕРСИЯ-windows-amd64.zip`
+     и сравнить результат со строкой в `SHA256SUMS`.
+
+   Сумма защищает от битой загрузки, а не от подмены: файл сумм лежит на той же странице.
+3. Распаковать (`tar -xzf архив.tar.gz`, на Windows — «Извлечь всё»), перейти в каталог
+   `cd aiexport-ВЕРСИЯ-OS-ARCH` и запустить `./aiexport` (на Linux и macOS именно с `./`:
+   без него оболочка ищет команду в PATH).
+
+Карантин macOS и SmartScreen обходить только после того, как сумма сошлась.
+На macOS файл из браузера помечен карантином — снять: `xattr -d com.apple.quarantine ./aiexport`.
+На Windows бинарник не подписан, поэтому SmartScreen при первом запуске предупредит:
+«Подробнее» → «Выполнить в любом случае».
+
 ## Запуск
 
 ```
@@ -68,12 +91,18 @@ aiexport export --src "full|Мой модуль|D:\projects\my-module" \
 
 Нужен Go 1.26 и выше.
 
+```bash
+go build -ldflags "-X main.version=0.1.0" -o bin/aiexport ./cmd/aiexport
 ```
+
+Windows:
+
+```powershell
 go build -ldflags "-X main.version=0.1.0" -o bin/aiexport.exe ./cmd/aiexport
 ```
 
 Кросс-сборка под Linux и macOS — обычным `GOOS`/`GOARCH` с `CGO_ENABLED=0`,
-подробности в `docs/RELEASE.md`.
+архивы для выпуска собирает `scripts/release.sh`, подробности в `docs/RELEASE.md`.
 
 ## Документы
 
@@ -81,3 +110,18 @@ go build -ldflags "-X main.version=0.1.0" -o bin/aiexport.exe ./cmd/aiexport
 - `docs/ПЛАН_v1.md` — структура пакетов и обоснование решений.
 - `docs/ROADMAP.md` — что входит в какую версию, порядок этапов и критерии готовности.
 - `docs/specs/` — спеки циклов и журнал развилок.
+
+## Лицензия
+
+Copyright (C) 2026 IliaSA101
+
+aiexport — свободная программа: её можно распространять и изменять на условиях
+GNU General Public License версии 3 или (по вашему выбору) любой более поздней версии,
+опубликованной Free Software Foundation (`GPL-3.0-or-later`). Программа распространяется
+в надежде, что она будет полезной, но **без каких-либо гарантий**. Полный текст лицензии —
+в файле [`LICENSE`](LICENSE).
+
+В бинарник вшиты сторонние библиотеки под MIT и BSD-3; их лицензии лежат в каждом архиве
+выпуска, в файле `THIRD_PARTY_NOTICES.txt`.
+
+Ошибки и предложения — в [Issues](https://github.com/IliaSA101/aiexport/issues).
