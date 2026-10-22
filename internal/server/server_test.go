@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -338,10 +339,27 @@ func TestExportDownloadAndBadOut(t *testing.T) {
 		t.Error("в теле нет содержимого файла")
 	}
 
-	for _, out := range []string{`\\server\share\b.md`, root, filepath.Join(root, "нет", "b.md")} {
+	bad := []string{root, filepath.Join(root, "нет", "b.md")}
+	if runtime.GOOS == "windows" {
+		bad = append(bad, `\\server\share\b.md`)
+	}
+	for _, out := range bad {
 		rec := do(t, h, http.MethodPost, "/api/export", okHost(), ExportRequest{Spec: specFor(root), Out: out})
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("out %q: код %d, ожидали 400", out, rec.Code)
+		}
+	}
+
+	// На POSIX «\\server\share\b.md» — обычное имя файла с обратными слэшами, а не UNC.
+	// Раньше тест передавал его относительным путём, и выгрузка ложилась в каталог пакета.
+	if runtime.GOOS != "windows" {
+		out := filepath.Join(t.TempDir(), `\\server\share\b.md`)
+		rec := do(t, h, http.MethodPost, "/api/export", okHost(), ExportRequest{Spec: specFor(root), Out: out})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("out %q: код %d, ожидали 200: %s", out, rec.Code, rec.Body.String())
+		}
+		if _, err := os.Stat(out); err != nil {
+			t.Errorf("файл вывода не создан по указанному пути: %v", err)
 		}
 	}
 }

@@ -27,17 +27,22 @@ func browse(t *testing.T, h http.Handler, path string) (int, BrowseResponse, err
 
 func TestBrowseRejectsServicePaths(t *testing.T) {
 	h := newTestServer(t, nil).Handler()
-	for _, p := range []string{
+	// Эти формы отбиваются на любой ОС: на POSIX они не абсолютные пути.
+	service := []string{
 		`\\server\share`,
 		`\\server\share\dir`,
 		`\\?\C:\`,
 		`\\.\C:\`,
 		`\??\C:\`,
-		`//server/share`,
-		`/\server\share`,
 		`\/server/share`,
 		`  \\server\share`,
-	} {
+	}
+	// На POSIX «//server/share» и «/\server\share» — законные абсолютные пути, а не UNC:
+	// сетевого ресурса и утечки NTLM-хэша там нет. Правило — Windows-only, как в paths_test.go.
+	if runtime.GOOS == "windows" {
+		service = append(service, `//server/share`, `/\server\share`)
+	}
+	for _, p := range service {
 		code, _, e := browse(t, h, p)
 		if code != http.StatusBadRequest || e.Error == "" {
 			t.Errorf("%q: код %d, ошибка %q; ожидали 400 с текстом", p, code, e.Error)
