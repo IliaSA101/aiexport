@@ -18,6 +18,16 @@ if [ -n "$bad" ]; then
   exit 1
 fi
 
+# Приватное внутри публичных файлов: машинные пути, личные адреса, названия приватных
+# репозиториев, имена оснастки. Проверку даёт сама оснастка (.claude/), на чистом клоне
+# её нет — тогда шаг просто пропускается, без ошибки.
+if [ -f .claude/hooks/public-guard.mjs ] && command -v node >/dev/null 2>&1; then
+  if ! node .claude/hooks/public-guard.mjs --staged; then
+    echo "pre-commit: это уедет в публичный репозиторий — убрать или перенести в приватную часть" >&2
+    exit 1
+  fi
+fi
+
 # Крупные файлы (> 2 МБ) — почти наверняка случайность
 big=$(git diff --cached --name-only --diff-filter=ACMR | while read -r f; do
   [ -f "$f" ] && [ "$(wc -c < "$f")" -gt 2097152 ] && echo "$f"
