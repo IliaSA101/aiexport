@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>aiexport — упаковщик кода для ИИ</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1>aiexport</h1>
+    <p class="muted">Собирает исходники из нескольких папок в один файл для языковой модели.</p>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="h-sources">
+      <h2 id="h-sources">Источники</h2>
+      <p class="muted">Порядок источников — это порядок секций в файле. Самое важное для вопроса ставьте в конец.</p>
+      <div id="sources-list"></div>
+
+      <h3>Добавить источник</h3>
+      <div class="add-row">
+        <label class="field grow">
+          <span>Путь к папке</span>
+          <input id="draft-path" type="text" autocomplete="off" spellcheck="false" placeholder="D:\проекты\мой_проект">
+        </label>
+        <button id="btn-browse" type="button" class="secondary">Обзор…</button>
+      </div>
+      <div class="add-row">
+        <label class="field grow">
+          <span>Подпись (попадёт в заголовки секций)</span>
+          <input id="draft-label" type="text" autocomplete="off" placeholder="Если пусто — имя папки">
+        </label>
+        <label class="field">
+          <span>Режим</span>
+          <select id="draft-mode">
+            <option value="full">Полностью</option>
+            <option value="tree">Только дерево</option>
+          </select>
+        </label>
+        <button id="btn-add" type="button">Добавить</button>
+      </div>
+      <p id="hint-add" class="hint" hidden></p>
+
+      <div id="picker" class="picker" hidden></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-options">
+      <h2 id="h-options">Параметры</h2>
+      <label class="field">
+        <span>Глобы исключений (по одному на строку, например <code>**/*.min.js</code>)</span>
+        <textarea id="opt-exclude" rows="3" spellcheck="false"></textarea>
+      </label>
+      <div class="opts-row">
+        <label class="check">
+          <input id="opt-gitignore" type="checkbox" checked>
+          <span>Учитывать .gitignore</span>
+        </label>
+        <label class="field">
+          <span>Лимит размера файла, КБ (пусто — по умолчанию)</span>
+          <input id="opt-maxsize" type="text" inputmode="numeric" autocomplete="off">
+        </label>
+      </div>
+      <label class="field">
+        <span>Свободные инструкции (добавятся в конец файла)</span>
+        <textarea id="opt-instructions" rows="4"></textarea>
+      </label>
+    </section>
+
+    <section class="card" aria-labelledby="h-actions">
+      <h2 id="h-actions">Результат</h2>
+      <div class="actions">
+        <button id="btn-plan" type="button">Посчитать</button>
+        <label class="field grow">
+          <span>Куда сохранить (пусто — решит сервер)</span>
+          <input id="opt-out" type="text" autocomplete="off" spellcheck="false" placeholder="bundle.md">
+        </label>
+        <button id="btn-export" type="button">Собрать</button>
+      </div>
+      <p id="hint-run" class="hint" hidden></p>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <div id="confirm-overwrite" class="confirm" role="alertdialog" aria-labelledby="confirm-title" hidden>
+        <p id="confirm-title" class="confirm-title">Файл уже существует. Заменить его?</p>
+        <p id="confirm-detail" class="muted"></p>
+        <div class="confirm-buttons">
+          <button id="btn-overwrite" type="button">Заменить</button>
+          <button id="btn-overwrite-cancel" type="button" class="secondary">Отмена</button>
+        </div>
+      </div>
+      <div id="result"></div>
+    </section>
+  </main>
+</body>
+</html>
